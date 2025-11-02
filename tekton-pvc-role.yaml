@@ -1,0 +1,23 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-pvc-role
+  namespace: sn-labs-aashimathur2
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "create", "delete", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-pvc-rolebinding
+  namespace: sn-labs-aashimathur2
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: sn-labs-aashimathur2
+roleRef:
+  kind: Role
+  name: tekton-pvc-role
+  apiGroup: rbac.authorization.k8s.io

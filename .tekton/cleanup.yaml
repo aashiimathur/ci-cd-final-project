@@ -1,0 +1,23 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+spec:
+  workspaces:
+    - name: output
+      description: Workspace containing the source code and build files
+
+  steps:
+    - name: remove
+      image: alpine
+      script: |
+        #!/bin/sh
+        set +e  # Do not stop on errors
+        echo "🧹 Cleaning up workspace..."
+        echo "Removing all files from /workspace/output and /workspace/source ..."
+
+        # Safely remove everything if it exists
+        rm -rf /workspace/output/* || true
+        rm -rf /workspace/source/* || true
+
+        echo "✅ Cleanup completed successfully!"

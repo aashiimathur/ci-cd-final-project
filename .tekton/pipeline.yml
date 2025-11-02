@@ -1,0 +1,85 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ci-cd-pipeline
+spec:
+  workspaces:
+    - name: output
+  params:
+    - name: app-name
+      type: string
+      default: "counter-api"
+    - name: repo-url
+      type: string
+      default: "https://github.com/aashiimathur/ci-cd-final-project.git"
+    - name: build-image
+      type: string
+      default: "image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/counter-api"
+  tasks:
+    # Step 1: Cleanup
+    - name: cleanup
+      taskRef:
+        name: cleanup
+      workspaces:
+        - name: output
+          workspace: output
+
+    # Step 2: Git Clone
+    - name: git-clone
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.repo-url)
+      workspaces:
+        - name: output
+          workspace: output
+
+    # Step 3: Lint with flake8
+    - name: flake8-lint
+      taskRef:
+        name: flake8
+        kind: Task
+
+      runAfter:
+        - git-clone
+      workspaces:
+        - name: source
+          workspace: output
+
+    # Step 4: Test with nose
+    - name: nose-tests
+      taskRef:
+        name: nose
+      runAfter:
+        - flake8-lint
+      workspaces:
+        - name: source
+          workspace: output
+
+    # Step 5: Build Image
+    - name: build
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      runAfter:
+        - nose-tests
+      params:
+        - name: IMAGE
+          value: $(params.build-image)
+      workspaces:
+        - name: source
+          workspace: output
+
+    # Step 6: Deploy to OpenShift
+    - name: deploy
+      taskRef:
+        name: openshift-client
+        kind: ClusterTask
+      runAfter:
+        - build
+      params:
+        - name: SCRIPT
+          value: |
+            oc create deployment $(params.app-name) --image=$(params.build-image) --dry-run=client -o yaml | oc apply -f -
